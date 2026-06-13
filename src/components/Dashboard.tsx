@@ -1,6 +1,8 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { Brain, FileText, Smile, Heart, TrendingUp } from 'lucide-react';
+import { getStressSeverity } from '../utils/stressHelpers';
+import { getExamMotivation } from '../utils/motivationHelpers';
 
 interface DashboardProps {
   setActiveTab: (tab: string) => void;
@@ -35,21 +37,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
     return acc;
   }, []);
 
-  // Get active exam motivational quote
-  const getExamMotivation = (exam: string) => {
-    switch (exam) {
-      case 'JEE':
-        return "Physics, Chemistry, and Math are languages of logic. Master the concepts, trust your problem-solving speed, and take breaks to keep your analytical mind sharp.";
-      case 'NEET':
-        return "Every diagram you memorize and Biology concept you master brings you closer to healing lives. Pace yourself—healing begins with your own mental well-being.";
-      case 'UPSC':
-        return "UPSC is a marathon of consistency, not a sprint. The syllabus is vast, but your resolve is deeper. Focus on quality prep and prioritize mental clarity.";
-      case 'BOARD':
-        return "Board exams are just stepping stones, not final definitions of your potential. Take it one chapter at a time, sleep well, and trust your preparation.";
-      default:
-        return "Believe in your ability to learn, adapt, and grow. Consistency beats intensity every single time. Aura is here to walk this path with you.";
-    }
-  };
+
 
   // 2. Render Mood Line Chart (SVG)
   const renderMoodChart = () => {
@@ -148,13 +136,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
   const circumference = normalizedRadius * 2 * Math.PI;
   const strokeDashoffset = circumference - (Math.min(displayStressLevel, 10) / 10) * circumference;
 
-  const getStressSeverity = (score: number) => {
-    if (score === 0) return { label: 'No Data', color: 'var(--text-muted)', desc: 'Write a journal entry to begin tracking' };
-    if (score < 4) return { label: 'Calm / Low', color: 'var(--color-success)', desc: 'Excellent emotional balance. Keep studying steadily!' };
-    if (score < 7) return { label: 'Moderate', color: 'var(--color-secondary)', desc: 'Experiencing regular exam pressure. Rest is recommended.' };
-    if (score < 9) return { label: 'High Stress', color: 'var(--color-warning-amber)', desc: 'Stress levels are elevated. Try a breathing break!' };
-    return { label: 'Burnout Risk', color: 'var(--color-warning)', desc: 'High risk of academic fatigue. Stop studying and talk to Aura immediately.' };
-  };
+
 
   const severity = getStressSeverity(displayStressLevel);
 

@@ -15,11 +15,13 @@ interface PhaseConfig {
 export const BreathingGuide: React.FC = () => {
   const [mode, setMode] = useState<BreathingMode>('BOX');
   const [isActive, setIsActive] = useState(false);
-  const [currentPhaseIndex, setCurrentPhaseIndex] = useState(0);
-  const [secondsRemaining, setSecondsRemaining] = useState(0);
-  const [totalCycleCount, setTotalCycleCount] = useState(0);
+  const [breathingState, setBreathingState] = useState({
+    phaseIndex: 0,
+    secondsRemaining: 4, // default matching BOX inhale duration
+    totalCycleCount: 0,
+  });
   
-  const timerRef = useRef<number | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Setup Phase Sequences for each mode
   const getModeSequence = (selectedMode: BreathingMode): PhaseConfig[] => {
@@ -47,43 +49,36 @@ export const BreathingGuide: React.FC = () => {
   };
 
   const currentSequence = getModeSequence(mode);
-  const activePhase = currentSequence[currentPhaseIndex];
-
-  // Initialize seconds when phase changes or starts
-  useEffect(() => {
-    if (isActive) {
-      setSecondsRemaining(activePhase.duration);
-    }
-  }, [currentPhaseIndex, isActive, mode]);
+  const activePhase = currentSequence[breathingState.phaseIndex];
 
   // Main Timer Logic
   useEffect(() => {
     if (isActive) {
-      timerRef.current = window.setInterval(() => {
-        setSecondsRemaining((prev) => {
-          if (prev <= 1) {
-            // Move to next phase
-            setCurrentPhaseIndex((prevIdx) => {
-              const nextIdx = (prevIdx + 1) % currentSequence.length;
-              if (nextIdx === 0) {
-                // Completed one full cycle
-                setTotalCycleCount((c) => c + 1);
-              }
-              return nextIdx;
-            });
-            return 0;
+      timerRef.current = setInterval(() => {
+        setBreathingState((prev) => {
+          if (prev.secondsRemaining <= 1) {
+            const nextIdx = (prev.phaseIndex + 1) % currentSequence.length;
+            const nextPhase = currentSequence[nextIdx];
+            return {
+              phaseIndex: nextIdx,
+              secondsRemaining: nextPhase.duration,
+              totalCycleCount: nextIdx === 0 ? prev.totalCycleCount + 1 : prev.totalCycleCount,
+            };
           }
-          return prev - 1;
+          return {
+            ...prev,
+            secondsRemaining: prev.secondsRemaining - 1,
+          };
         });
       }, 1000);
     } else {
-      if (timerRef.current) window.clearInterval(timerRef.current);
+      if (timerRef.current) clearInterval(timerRef.current);
     }
 
     return () => {
-      if (timerRef.current) window.clearInterval(timerRef.current);
+      if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isActive, currentSequence.length]);
+  }, [isActive, currentSequence]);
 
   const handleStartPause = () => {
     setIsActive(!isActive);
@@ -91,22 +86,27 @@ export const BreathingGuide: React.FC = () => {
 
   const handleReset = () => {
     setIsActive(false);
-    setCurrentPhaseIndex(0);
-    setSecondsRemaining(currentSequence[0].duration);
-    setTotalCycleCount(0);
+    setBreathingState({
+      phaseIndex: 0,
+      secondsRemaining: currentSequence[0].duration,
+      totalCycleCount: 0,
+    });
   };
 
   const handleModeChange = (newMode: BreathingMode) => {
     setIsActive(false);
     setMode(newMode);
-    setCurrentPhaseIndex(0);
-    setTotalCycleCount(0);
-    setSecondsRemaining(getModeSequence(newMode)[0].duration);
+    const newSequence = getModeSequence(newMode);
+    setBreathingState({
+      phaseIndex: 0,
+      secondsRemaining: newSequence[0].duration,
+      totalCycleCount: 0,
+    });
   };
 
   // Calculate breathing progress fill percentage
   const totalDuration = activePhase.duration;
-  const elapsed = totalDuration - secondsRemaining;
+  const elapsed = totalDuration - breathingState.secondsRemaining;
   const progressPercent = isActive ? (elapsed / totalDuration) * 100 : 0;
 
   // Determine scale of inner circle based on interpolation between previous scale and current scale
@@ -210,7 +210,7 @@ export const BreathingGuide: React.FC = () => {
           </div>
 
           <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '0.5rem', height: '20px' }}>
-            {isActive && `${secondsRemaining}s remaining • Cycle ${totalCycleCount + 1}`}
+            {isActive && `${breathingState.secondsRemaining}s remaining • Cycle ${breathingState.totalCycleCount + 1}`}
           </div>
 
           <div className="breathing-progress-bar">

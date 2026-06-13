@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import type { JournalEntry as JournalType } from '../context/AppContext';
 import { useGemini } from '../hooks/useGemini';
 import { Brain, Calendar, FileText, Sparkles, ShieldAlert, AlertCircle, Heart, ChevronDown, ChevronUp } from 'lucide-react';
+import { getScoreColor } from '../utils/stressHelpers';
 
 export const JournalEntry: React.FC = () => {
   const { journals, addJournal, updateJournalAnalysis } = useApp();
@@ -54,12 +55,7 @@ export const JournalEntry: React.FC = () => {
     }
   };
 
-  const getScoreColor = (score: number) => {
-    if (score < 4) return 'var(--color-success)';
-    if (score < 7) return 'var(--color-secondary)';
-    if (score < 9) return 'var(--color-warning-amber)';
-    return 'var(--color-warning)';
-  };
+
 
   return (
     <div className="journal-layout">

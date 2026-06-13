@@ -1,67 +1,25 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Pause, RotateCcw, SkipForward, Clock, BookOpen, AlertCircle, Coffee } from 'lucide-react';
+import { getMindfulnessBreakTip } from '../utils/timerHelpers';
 
 type TimerMode = 'FOCUS' | 'SHORT_BREAK' | 'LONG_BREAK';
 
-export const PomodoroTimer: React.FC = () => {
-  const [mode, setMode] = useState<TimerMode>('FOCUS');
-  const [secondsRemaining, setSecondsRemaining] = useState(25 * 60);
-  const [isActive, setIsActive] = useState(false);
-  const [selectedSubject, setSelectedSubject] = useState('General Studies');
-  
-  const timerRef = useRef<number | null>(null);
+const MODE_DURATIONS: Record<TimerMode, number> = {
+  FOCUS: 25 * 60,
+  SHORT_BREAK: 5 * 60,
+  LONG_BREAK: 15 * 60,
+};
 
-  const modeDurations: Record<TimerMode, number> = {
-    FOCUS: 25 * 60,
-    SHORT_BREAK: 5 * 60,
-    LONG_BREAK: 15 * 60,
-  };
+interface WindowWithWebkit extends Window {
+  webkitAudioContext?: typeof AudioContext;
+}
 
-  // Reset timer on mode change
-  useEffect(() => {
-    setSecondsRemaining(modeDurations[mode]);
-    setIsActive(false);
-  }, [mode]);
-
-  // Timer Countdown Logic
-  useEffect(() => {
-    if (isActive) {
-      timerRef.current = window.setInterval(() => {
-        setSecondsRemaining((prev) => {
-          if (prev <= 1) {
-            // Timer finished! Ring bell and swap mode
-            setIsActive(false);
-            playAlertSound();
-            handleTimerComplete();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
-      if (timerRef.current) window.clearInterval(timerRef.current);
-    }
-
-    return () => {
-      if (timerRef.current) window.clearInterval(timerRef.current);
-    };
-  }, [isActive, mode]);
-
-  const handleTimerComplete = () => {
-    if (mode === 'FOCUS') {
-      // Prompt user to short break
-      setMode('SHORT_BREAK');
-      alert('Focus session complete! Time to take a mindfulness break.');
-    } else {
-      setMode('FOCUS');
-      alert('Break complete! Let\'s return to study focus.');
-    }
-  };
-
-  const playAlertSound = () => {
-    try {
-      // Audio fallback using web audio api so we don't need external assets
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+const playAlertSound = () => {
+  try {
+    // Audio fallback using web audio api so we don't need external assets
+    const AudioContextClass = window.AudioContext || (window as unknown as WindowWithWebkit).webkitAudioContext;
+    if (AudioContextClass) {
+      const audioCtx = new AudioContextClass();
       const oscillator = audioCtx.createOscillator();
       const gainNode = audioCtx.createGain();
       
@@ -74,10 +32,59 @@ export const PomodoroTimer: React.FC = () => {
       
       oscillator.start();
       oscillator.stop(audioCtx.currentTime + 0.5);
-    } catch (e) {
-      console.warn('Audio Context alert block:', e);
     }
-  };
+  } catch (e) {
+    console.warn('Audio Context alert block:', e);
+  }
+};
+
+export const PomodoroTimer: React.FC = () => {
+  const [mode, setMode] = useState<TimerMode>('FOCUS');
+  const [secondsRemaining, setSecondsRemaining] = useState(25 * 60);
+  const [isActive, setIsActive] = useState(false);
+  const [selectedSubject, setSelectedSubject] = useState('General Studies');
+  
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const changeMode = useCallback((newMode: TimerMode) => {
+    setIsActive(false);
+    setMode(newMode);
+    setSecondsRemaining(MODE_DURATIONS[newMode]);
+  }, []);
+
+  const handleTimerComplete = useCallback(() => {
+    if (mode === 'FOCUS') {
+      changeMode('SHORT_BREAK');
+      alert('Focus session complete! Time to take a mindfulness break.');
+    } else {
+      changeMode('FOCUS');
+      alert('Break complete! Let\'s return to study focus.');
+    }
+  }, [mode, changeMode]);
+
+  // Timer Countdown Logic
+  useEffect(() => {
+    if (isActive) {
+      timerRef.current = setInterval(() => {
+        setSecondsRemaining((prev) => {
+          if (prev <= 1) {
+            // Timer finished! Ring bell and swap mode
+            setIsActive(false);
+            playAlertSound();
+            handleTimerComplete();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [isActive, handleTimerComplete]);
 
   const handleStartPause = () => {
     setIsActive(!isActive);
@@ -85,16 +92,12 @@ export const PomodoroTimer: React.FC = () => {
 
   const handleReset = () => {
     setIsActive(false);
-    setSecondsRemaining(modeDurations[mode]);
+    setSecondsRemaining(MODE_DURATIONS[mode]);
   };
 
   const handleSkip = () => {
-    setIsActive(false);
-    if (mode === 'FOCUS') {
-      setMode('SHORT_BREAK');
-    } else {
-      setMode('FOCUS');
-    }
+    const nextMode = mode === 'FOCUS' ? 'SHORT_BREAK' : 'FOCUS';
+    changeMode(nextMode);
   };
 
   // Format MM:SS
@@ -105,7 +108,7 @@ export const PomodoroTimer: React.FC = () => {
   };
 
   // Calculate circular SVG progress values
-  const totalDuration = modeDurations[mode];
+  const totalDuration = MODE_DURATIONS[mode];
   const elapsed = totalDuration - secondsRemaining;
   const progressFraction = elapsed / totalDuration;
   
@@ -116,23 +119,6 @@ export const PomodoroTimer: React.FC = () => {
   const strokeDashoffset = circumference - progressFraction * circumference;
 
   const subjects = ['Physics', 'Chemistry', 'Biology', 'Mathematics', 'General Studies', 'Writing & Revision'];
-
-  const getMindfulnessBreakTip = (currentMode: TimerMode) => {
-    if (currentMode === 'SHORT_BREAK') {
-      return {
-        title: 'Short Break Recharge',
-        tip: 'Instead of opening social media, look out the window, drink a glass of water, or stand up and rotate your neck. Keep your screen time zero during this break.',
-      };
-    }
-    if (currentMode === 'LONG_BREAK') {
-      return {
-        title: 'Deep Rest Recovery',
-        tip: 'Lie down flat, close your eyes, and listen to calming instrumental music, or step outside and walk around. Give your cognitive muscles a full cooling period.',
-      };
-    }
-    return null;
-  };
-
   const breakTip = getMindfulnessBreakTip(mode);
 
   return (
@@ -242,7 +228,7 @@ export const PomodoroTimer: React.FC = () => {
           <h3 style={{ fontSize: '1rem', marginBottom: '1rem' }}>Timer Settings</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <button
-              onClick={() => setMode('FOCUS')}
+              onClick={() => changeMode('FOCUS')}
               className={`nav-item ${mode === 'FOCUS' ? 'active' : ''}`}
               style={{ justifyContent: 'space-between', padding: '0.65rem 1rem' }}
             >
@@ -250,7 +236,7 @@ export const PomodoroTimer: React.FC = () => {
               <span>25m</span>
             </button>
             <button
-              onClick={() => setMode('SHORT_BREAK')}
+              onClick={() => changeMode('SHORT_BREAK')}
               className={`nav-item ${mode === 'SHORT_BREAK' ? 'active' : ''}`}
               style={{ justifyContent: 'space-between', padding: '0.65rem 1rem' }}
             >
@@ -258,7 +244,7 @@ export const PomodoroTimer: React.FC = () => {
               <span>5m</span>
             </button>
             <button
-              onClick={() => setMode('LONG_BREAK')}
+              onClick={() => changeMode('LONG_BREAK')}
               className={`nav-item ${mode === 'LONG_BREAK' ? 'active' : ''}`}
               style={{ justifyContent: 'space-between', padding: '0.65rem 1rem' }}
             >

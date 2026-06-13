@@ -116,7 +116,7 @@ export const Settings: React.FC<SettingsProps> = ({ onSetupComplete }) => {
             <input
               type="password"
               className="glass-input"
-              placeholder={!!import.meta.env.VITE_GEMINI_API_KEY ? "••••••••••••••••••••••••••••" : "Paste your Gemini API key here"}
+              placeholder={import.meta.env.VITE_GEMINI_API_KEY ? "••••••••••••••••••••••••••••" : "Paste your Gemini API key here"}
               value={key}
               onChange={(e) => setKey(e.target.value)}
             />

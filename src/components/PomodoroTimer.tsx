@@ -66,16 +66,7 @@ export const PomodoroTimer: React.FC = () => {
   useEffect(() => {
     if (isActive) {
       timerRef.current = setInterval(() => {
-        setSecondsRemaining((prev) => {
-          if (prev <= 1) {
-            // Timer finished! Ring bell and swap mode
-            setIsActive(false);
-            playAlertSound();
-            handleTimerComplete();
-            return 0;
-          }
-          return prev - 1;
-        });
+        setSecondsRemaining((prev) => prev - 1);
       }, 1000);
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -84,7 +75,19 @@ export const PomodoroTimer: React.FC = () => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isActive, handleTimerComplete]);
+  }, [isActive]);
+
+  // Handle Timer Completion
+  useEffect(() => {
+    if (secondsRemaining <= 0 && isActive) {
+      const timer = setTimeout(() => {
+        setIsActive(false);
+        playAlertSound();
+        handleTimerComplete();
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [secondsRemaining, isActive, handleTimerComplete]);
 
   const handleStartPause = () => {
     setIsActive(!isActive);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Wind, Play, Pause, RotateCcw, Brain, Star } from 'lucide-react';
 
 type BreathingMode = 'BOX' | '478' | 'EQUAL';
@@ -12,6 +12,31 @@ interface PhaseConfig {
   circleScale: number; // 0.8 to 1.4
 }
 
+// Setup Phase Sequences for each mode
+const getModeSequence = (selectedMode: BreathingMode): PhaseConfig[] => {
+  switch (selectedMode) {
+    case '478':
+      return [
+        { phase: 'INHALE', duration: 4, label: 'Inhale', instruction: 'Breathe in quietly through your nose...', circleScale: 1.4 },
+        { phase: 'HOLD_IN', duration: 7, label: 'Hold', instruction: 'Keep the air in, calm your mind...', circleScale: 1.4 },
+        { phase: 'EXHALE', duration: 8, label: 'Exhale', instruction: 'Whoosh the air out completely...', circleScale: 0.8 },
+      ];
+    case 'EQUAL':
+      return [
+        { phase: 'INHALE', duration: 4, label: 'Inhale', instruction: 'Inhale deeply and steadily...', circleScale: 1.4 },
+        { phase: 'EXHALE', duration: 4, label: 'Exhale', instruction: 'Release the breath smoothly...', circleScale: 0.8 },
+      ];
+    case 'BOX':
+    default:
+      return [
+        { phase: 'INHALE', duration: 4, label: 'Inhale', instruction: 'Inhale slowly, feeling your chest expand...', circleScale: 1.4 },
+        { phase: 'HOLD_IN', duration: 4, label: 'Hold', instruction: 'Hold the breath, letting stress dissolve...', circleScale: 1.4 },
+        { phase: 'EXHALE', duration: 4, label: 'Exhale', instruction: 'Exhale gently, releasing all tension...', circleScale: 0.8 },
+        { phase: 'HOLD_OUT', duration: 4, label: 'Hold', instruction: 'Rest empty, feeling complete stillness...', circleScale: 0.8 },
+      ];
+  }
+};
+
 export const BreathingGuide: React.FC = () => {
   const [mode, setMode] = useState<BreathingMode>('BOX');
   const [isActive, setIsActive] = useState(false);
@@ -23,32 +48,7 @@ export const BreathingGuide: React.FC = () => {
   
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Setup Phase Sequences for each mode
-  const getModeSequence = (selectedMode: BreathingMode): PhaseConfig[] => {
-    switch (selectedMode) {
-      case '478':
-        return [
-          { phase: 'INHALE', duration: 4, label: 'Inhale', instruction: 'Breathe in quietly through your nose...', circleScale: 1.4 },
-          { phase: 'HOLD_IN', duration: 7, label: 'Hold', instruction: 'Keep the air in, calm your mind...', circleScale: 1.4 },
-          { phase: 'EXHALE', duration: 8, label: 'Exhale', instruction: 'Whoosh the air out completely...', circleScale: 0.8 },
-        ];
-      case 'EQUAL':
-        return [
-          { phase: 'INHALE', duration: 4, label: 'Inhale', instruction: 'Inhale deeply and steadily...', circleScale: 1.4 },
-          { phase: 'EXHALE', duration: 4, label: 'Exhale', instruction: 'Release the breath smoothly...', circleScale: 0.8 },
-        ];
-      case 'BOX':
-      default:
-        return [
-          { phase: 'INHALE', duration: 4, label: 'Inhale', instruction: 'Inhale slowly, feeling your chest expand...', circleScale: 1.4 },
-          { phase: 'HOLD_IN', duration: 4, label: 'Hold', instruction: 'Hold the breath, letting stress dissolve...', circleScale: 1.4 },
-          { phase: 'EXHALE', duration: 4, label: 'Exhale', instruction: 'Exhale gently, releasing all tension...', circleScale: 0.8 },
-          { phase: 'HOLD_OUT', duration: 4, label: 'Hold', instruction: 'Rest empty, feeling complete stillness...', circleScale: 0.8 },
-        ];
-    }
-  };
-
-  const currentSequence = getModeSequence(mode);
+  const currentSequence = useMemo(() => getModeSequence(mode), [mode]);
   const activePhase = currentSequence[breathingState.phaseIndex];
 
   // Main Timer Logic
